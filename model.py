@@ -42,12 +42,15 @@ class MiniTransformer(nn.Module):
         self.attention = SelfAttention(embedding_dim)
         self.mlp = MLP(embedding_dim)
 
+        self.ln1 = nn.LayerNorm(embedding_dim)
+        self.ln2 = nn.LayerNorm(embedding_dim)
+
     def forward(self, tokens):
         x = self.embedding(tokens)
         print('Embedding:', x)
-        x = x + self.attention(x)
+        x = x + self.attention(self.ln1(x))
         print('Attention output:', x)
-        x = x + self.mlp(x)
+        x = x + self.mlp(self.ln2(x))
         print('MLP output:', x)
         return x
 
