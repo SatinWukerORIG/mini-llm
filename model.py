@@ -9,10 +9,10 @@ class SelfAttention(nn.Module):
         self.key = nn.Linear(embed_dim, embed_dim, bias=False)
         self.value = nn.Linear(embed_dim, embed_dim, bias=False)
 
-    def forward(self, x):
-        Q = self.query(x)
-        K = self.key(x)
-        V = self.value(x)
+    def forward(self, token_embeddings):
+        Q = self.query(token_embeddings)
+        K = self.key(token_embeddings)
+        V = self.value(token_embeddings)
 
         scores = Q @ K.transpose(-2, -1)
         scores = scores / (Q.size(-1) ** 0.5)
@@ -38,16 +38,16 @@ class MLP(nn.Module):
 class MiniTransformer(nn.Module):
     def __init__(self, vocab_size, embedding_dim):
         super().__init__()
-        self.embedding = nn.Embedding(vocab_size, embedding_dim)
+        self.embedding_table = nn.Embedding(vocab_size, embedding_dim)
         self.attention = SelfAttention(embedding_dim)
         self.mlp = MLP(embedding_dim)
 
     def forward(self, tokens):
-        x = self.embedding(tokens)
-        print('Embedding:', x)
-        x = x + self.attention(x)
-        print('Attention output:', x)
-        x = x + self.mlp(x)
-        print('MLP output:', x)
-        return x
+        embeddings = self.embedding_table(tokens)
+        print('Embedding:', embeddings)
+        attention_output = embeddings + self.attention(embeddings)
+        print('Attention output:', attention_output)
+        mlp_output = attention_output + self.mlp(attention_output)
+        print('MLP output:', mlp_output)
+        return mlp_output
 
