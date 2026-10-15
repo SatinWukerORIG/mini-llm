@@ -14,8 +14,15 @@ class SelfAttention(nn.Module):
         K = self.key(token_embeddings)
         V = self.value(token_embeddings)
 
+
         scores = Q @ K.transpose(-2, -1)
+        a = torch.arange(Q.size(-2)).unsqueeze(1)
+        b = torch.arange(Q.size(-2))
+        mask = a >= b
+        
         scores = scores / (Q.size(-1) ** 0.5)
+        scores *= mask
+        print(scores)
 
         attention = torch.softmax(scores, dim=-1)
         output = attention @ V
@@ -54,3 +61,4 @@ class MiniTransformer(nn.Module):
         mlp_output = attention_output + self.mlp(self.ln2(attention_output))
         print('MLP output:', mlp_output)
         return mlp_output
+

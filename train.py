@@ -1,9 +1,10 @@
 import torch
 
 import model
+import tokenizer
 
+tokens = tokenizer.sentence2idx('Hello World')
+llm = model.MiniTransformer(vocab_size=96, embedding_dim=4)
 
-network = model.MiniTransformer(vocab_size=5, embedding_dim=4)
+output = llm(tokens)
 
-input_tokens = torch.tensor([1, 2, 3, 4, 3, 2])
-output = network(input_tokens)
