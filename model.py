@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 
+import config
+
 class SelfAttention(nn.Module):
     def __init__(self, embed_dim):
         super().__init__()
@@ -14,15 +16,13 @@ class SelfAttention(nn.Module):
         K = self.key(token_embeddings)
         V = self.value(token_embeddings)
 
-
-        scores = Q @ K.transpose(-2, -1)
         a = torch.arange(Q.size(-2)).unsqueeze(1)
         b = torch.arange(Q.size(-2))
-        mask = a >= b
-        
+        mask = torch.where(a >= b, 0, float('-inf'))
+
+        scores = Q @ K.transpose(-2, -1)
         scores = scores / (Q.size(-1) ** 0.5)
-        scores *= mask
-        print(scores)
+        scores += mask
 
         attention = torch.softmax(scores, dim=-1)
         output = attention @ V
@@ -43,22 +43,46 @@ class MLP(nn.Module):
         return self.model(x)
 
 
-class MiniTransformer(nn.Module):
-    def __init__(self, vocab_size, embedding_dim):
+class TransformerBlock(nn.Module):
+    def __init__(self, embedding_dim):
         super().__init__()
-        self.embedding_table = nn.Embedding(vocab_size, embedding_dim)
+
         self.attention = SelfAttention(embedding_dim)
         self.mlp = MLP(embedding_dim)
 
         self.ln1 = nn.LayerNorm(embedding_dim)
         self.ln2 = nn.LayerNorm(embedding_dim)
 
-    def forward(self, tokens):
-        embeddings = self.embedding_table(tokens)
-        print('Embedding:', embeddings)
+    def forward(self, embeddings):
         attention_output = embeddings + self.attention(self.ln1(embeddings))
-        print('Attention output:', attention_output)
         mlp_output = attention_output + self.mlp(self.ln2(attention_output))
-        print('MLP output:', mlp_output)
+
+        if config.IS_DEBUG:
+            print('Embedding:', embeddings)
+            print('Embedding shape:', embeddings.shape)
+            print()
+            print('Attention output:', attention_output)
+            print('Attention shape:', attention_output.shape)
+            print()
+            print('MLP output:', mlp_output)
+            print('MLP shape:', mlp_output.shape)
+
         return mlp_output
 
+
+class MiniTransformer(nn.Module):
+    def __init__(self, vocab_size, embedding_dim):
+        super().__init__()
+        self.embedding_table = nn.Embedding(vocab_size, embedding_dim)
+
+        self.blocks = nn.ModuleList([
+            TransformerBlock(embedding_dim)
+            for _ in range(config.N_BLOCKS)
+        ])
+
+    def forward(self, tokens):
+        embeddings = self.embedding_table(tokens)
+        for block in self.blocks:
+            embeddings = block(embeddings)
+
+        return embeddings
