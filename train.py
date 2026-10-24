@@ -1,4 +1,5 @@
 import torch
+import torchviz
 
 import model
 import tokenizer
@@ -8,3 +9,8 @@ llm = model.MiniTransformer(vocab_size=96, embedding_dim=4)
 
 output = llm(tokens)
 
+dot = torchviz.make_dot(output, params=dict(list(llm.named_parameters()) + [('input', tokens)]))
+
+# 5. Save/Render the computation graph as an image
+dot.format = 'png'
+dot.render('torch_computation_graph')
