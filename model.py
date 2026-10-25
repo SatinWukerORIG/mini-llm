@@ -4,7 +4,7 @@ import torch.nn as nn
 import config
 
 class SelfAttention(nn.Module):
-    def __init__(self, embed_dim):
+    def __init__(self, embed_dim=config.EMBED_DIM):
         super().__init__()
 
         self.query = nn.Linear(embed_dim, embed_dim, bias=False)
@@ -16,8 +16,8 @@ class SelfAttention(nn.Module):
         K = self.key(token_embeddings)
         V = self.value(token_embeddings)
 
-        a = torch.arange(Q.size(-2)).unsqueeze(1)
-        b = torch.arange(Q.size(-2))
+        a = torch.arange(Q.size(-2), device=Q.device).unsqueeze(1)
+        b = torch.arange(Q.size(-2), device=Q.device)
         mask = torch.where(a >= b, 0, float('-inf'))
 
         scores = Q @ K.transpose(-2, -1)
@@ -27,6 +27,33 @@ class SelfAttention(nn.Module):
         attention = torch.softmax(scores, dim=-1)
         output = attention @ V
         return output
+
+
+class MultiHeadAttention(nn.Module):
+    def __init__(self, embedding_dim=config.EMBED_DIM, n_heads=config.N_HEADS):
+        super().__init__()
+
+        assert embedding_dim % n_heads == 0
+        self.d_head = embedding_dim // n_heads
+
+        self.output_projection = nn.Linear(embedding_dim, embedding_dim)
+
+        self.head_projections = nn.ModuleList([
+            nn.Linear(embedding_dim, self.d_head)
+            for _ in range(n_heads)
+        ])
+        self.heads = nn.ModuleList([
+            SelfAttention(self.d_head)
+            for _ in range(n_heads)
+        ])
+
+
+    def forward(self, token_embeddings):
+        attention_list = []
+        for i, head in enumerate(self.heads):
+            attention_list.append(head(self.head_projections[i](token_embeddings)))
+        full_attention = torch.cat(attention_list, dim=-1)
+        return self.output_projection(full_attention)
 
 
 class MLP(nn.Module):
@@ -44,10 +71,10 @@ class MLP(nn.Module):
 
 
 class TransformerBlock(nn.Module):
-    def __init__(self, embedding_dim):
+    def __init__(self, embedding_dim=config.EMBED_DIM):
         super().__init__()
 
-        self.attention = SelfAttention(embedding_dim)
+        self.attention = MultiHeadAttention(embedding_dim)
         self.mlp = MLP(embedding_dim)
 
         self.ln1 = nn.LayerNorm(embedding_dim)
@@ -71,7 +98,7 @@ class TransformerBlock(nn.Module):
 
 
 class MiniTransformer(nn.Module):
-    def __init__(self, vocab_size, embedding_dim):
+    def __init__(self, vocab_size, embedding_dim=config.EMBED_DIM):
         super().__init__()
         self.embedding_table = nn.Embedding(vocab_size, embedding_dim)
 
